@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  mastercom-service:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - ENVIRONMENT=development
+      - PORT=8080
+      - LOG_LEVEL=info
+      - DD_ENABLED=true
+      - DD_SERVICE=mastercom-service
+      - DD_ENV=development
+      - DD_VERSION=1.0.0
+      - DD_AGENT_HOST=datadog-agent
+      - DD_AGENT_PORT=8126
+      - DD_TRACE_SAMPLE_RATE=1.0
+    depends_on:
+      - datadog-agent
+    networks:
+      - mastercom-network
+
+  datadog-agent:
+    image: datadog/agent:latest
+    environment:
+      - DD_API_KEY=${DD_API_KEY:-your-datadog-api-key}
+      - DD_APM_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      - DD_CONTAINER_EXCLUDE="name:datadog-agent"
+      - DD_PROCESS_AGENT_ENABLED=true
+      - DD_SYSTEM_PROBE_ENABLED=true
+      - DD_SYSTEM_PROBE_NETWORK_ENABLED=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    ports:
+      - "8126:8126"  # APM
+      - "8125:8125"  # StatsD
+    networks:
+      - mastercom-network
+
+networks:
+  mastercom-network:
+    driver: bridge
