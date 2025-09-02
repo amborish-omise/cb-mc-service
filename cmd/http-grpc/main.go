@@ -51,6 +51,7 @@ func main() {
 	// Initialize handlers
 	handlers.InitHandlers(logger)
 	handlers.InitDocumentHandlers(logger)
+	handlers.InitEthocaWebhookHandlers(logger)
 
 	// Start gRPC server in a goroutine
 	go startGRPCServer()
@@ -136,6 +137,17 @@ func startHTTPServer(cfg *config.Config, ddConfig *config.DatadogConfig, logger 
 			documents.POST("", handlers.UploadDocument)
 			documents.GET("/:id", handlers.GetDocument)
 			documents.DELETE("/:id", handlers.DeleteDocument)
+		}
+
+		// Ethoca Webhook endpoints
+		webhooks := api.Group("/webhooks")
+		{
+			ethoca := webhooks.Group("/ethoca")
+			{
+				ethoca.POST("", handlers.HandleEthocaWebhook)
+				ethoca.GET("/health", handlers.GetWebhookHealth)
+				ethoca.GET("/stats", handlers.GetWebhookStats)
+			}
 		}
 	}
 

@@ -1,0 +1,375 @@
+openapi: 3.0.3
+info:
+  title: Ethoca Alerts Merchant API
+  description: "\n[Ethoca Alerts](https://www.ethoca.com/ethoca-alerts) is a collaborative tool that connects merchants, acquirers, and issuers together to share fraud and dispute data, enabling a faster dispute resolution process that reduces the need for chargebacks altogether.<br/>\n<br/>\nAs an issuer or issuer partner you can submit fraud and dispute transactions to alert merchants and acquirers about potential chargebacks.<br/>\n<br/>\nAs a merchant, acquirer or partner you can work on the alert and issue a refund preventing a chargeback.\n"
+
+  version: '1.0.0'
+  contact:
+    name: API Support
+    url: https://developer.mastercard.com/support
+    email: apisupport@mastercard.com
+
+servers:
+  - url: https://api.ethocaweb.com/ethoca/alerts/merchants
+    description: Production server (uses live data)
+  - url: https://sandbox.api.ethocaweb.com/ethoca/alerts/merchants
+    description: Sandbox server (testing environment)
+
+tags:
+  - name: Alert Outcomes
+    description: Actions which Partners/Merchants can take on the provided alert and submit the feedback after processing them.
+
+paths:
+  /outcomes:
+    post:
+      tags:
+        - Alert Outcomes
+      summary: ( Merchant / Partner ) Submit an outcome to an alert. Multiple alert outcomes (up to 25 ) can be provided. (MVP or later)
+      description: "Allows submission of outcomes to one or more alerts.<br/>\n<br/>\nImportant Notes:\n  1. When providing your outcome and refund flag, ensure that you **respond to the alert within 24 hours** with a final state outcome to optimize your chance of stopping the chargeback. The first final state outcome you provide for an Alert is the outcome that will be sent to the issuer.<br/>\n  <br/>\n  2. In_progress and shipper_contacted are considered in-transit outcomes. In best practice, do not leave an alert with a transit outcome for longer than 24 hours."
+      operationId: submitOutcome
+
+      requestBody:
+        $ref: '#/components/requestBodies/Outcomes'
+
+      responses:
+        '200':
+          $ref: '#/components/responses/OutcomeAcknowledgement'
+        '400' :
+          $ref: '#/components/responses/BadRequest'
+        '401' :
+          $ref: '#/components/responses/Unauthorized'
+        '403' :
+          $ref: '#/components/responses/Forbidden'
+
+components:
+  schemas:
+    Errors:
+      required:
+        - Error
+      type: object
+      properties:
+        Error:
+          type: array
+          description: List of error objects
+          items:
+            $ref: '#/components/schemas/Error'
+      description: Errors object
+    Error:
+      type: object
+      properties:
+        Source:
+          maxLength: 100
+          minLength: 0
+          type: string
+          description: Source of the error
+          example: Service
+        ReasonCode:
+          maxLength: 100
+          minLength: 0
+          type: string
+          description: Unique code identifying the error case
+          example: RESULT_CODE
+        Description:
+          maxLength: 1000
+          minLength: 0
+          type: string
+          description: Short description of the error
+          example: Short description of the error
+        Recoverable:
+          type: boolean
+          description: "Indicates whether this error will always be returned for this\
+            \ request or retrying could change the outcome"
+          example: false
+          default: false
+        Details:
+          maxLength: 1000
+          minLength: 0
+          type: string
+          description: Optional detailed description of the issue
+          example: Detailed description of the error
+      description: Error object
+    ErrorResponse:
+      required:
+        - Errors
+      type: object
+      properties:
+        Errors:
+          $ref: '#/components/schemas/Errors'
+      description: Error Response object
+
+    Outcomes:
+      type: object
+      properties:
+        outcomes:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlertsOutcome'
+          description: Outcome indicating the action taken on the alert
+    AlertsOutcome:
+      type: object
+      required:
+        - alertId
+        - outcome
+        - refundStatus
+        - refund
+        - amountStopped
+      properties:
+        alertId:
+          $ref: '#/components/schemas/AlertId'
+        outcome:
+          $ref: '#/components/schemas/Outcome'
+        refundStatus:
+          $ref: '#/components/schemas/RefundStatus'
+        refund:
+          $ref: '#/components/schemas/Refund'
+        amountStopped:
+          $ref: '#/components/schemas/AmountStopped'
+        comments:
+          $ref: '#/components/schemas/Comments'
+        actionTimestamp:
+          $ref: '#/components/schemas/ActionTimestamp'
+    Outcome:
+      type: string
+      maxLength: 30
+      minLength: 5
+      description: |-
+        The outcome of the alert.This MUST always be provided.
+        
+        Confirmed Fraud Outcomes: 
+        - STOPPED: the order was stopped
+        - PARTIALLY_STOPPED: part of the order was stopped
+        - PREVIOUSLY_CANCELLED: the transaction was already canceled
+        - MISSED: too late, the order has shipped / service consumed
+        - NOT_FOUND: the order could not be found
+        - ACCOUNT_SUSPENDED: the account has been suspended
+        - OTHER: anything else not covered above
+
+        Customer Dispute Outcomes
+        - RESOLVED: case resolved with the customer
+        - RESOLVED_PREVIOUSLY_REFUNDED: refund already processed
+        - UNRESOLVED_DISPUTE: Merchant disagrees with reason for dispute
+        - NOT_FOUND: Alert could not be found in the system
+        - OTHER: Any other outcome as described in the comments
+
+         Allowed values for outcome:
+          - STOPPED
+          - PARTIALLY_STOPPED
+          - PREVIOUSLY_CANCELLED
+          - MISSED
+          - NOT_FOUND
+          - ACCOUNT_SUSPENDED
+          - TOO_LATE
+          - OTHER
+          - RESOLVED
+          - RESOLVED_PREVIOUSLY_REFUNDED
+          - UNRESOLVED_DISPUTE
+
+        Note:
+        Confirmed Fraud Outcome missed corresponds to
+        the Ethoca Alerts Web Portal outcome ‘Too Late’
+        Customer Dispute Outcome previously_refunded
+        corresponds to the Ethoca Alerts Web Portal outcome
+        ‘Resolved-Previously Refunded’
+
+      example: RESOLVED
+    AlertId:
+      type: string
+      minLength: 25
+      maxLength: 25
+      description: Ethoca generated unique identifier for the alert.
+      example: A4IM9K2MIYL9F2BPF9TWUIXTU
+    Status:
+      type: string
+      maxLength: 7
+      minLength: 7
+      description: |-
+        The code indicates the outcome of the request.
+          - SUCCESS = The Alert was consumed successfully.
+          - FAILURE = The Alert was failed to consume.
+      example: SUCCESS
+
+    Comments:
+      type: string
+      description: Additional comments to be provided with the outcome
+      maxLength: 1024
+      minLength: 1
+      example: Refunded via transactionId XXX on YYY
+    ActionTimestamp:
+      maxLength: 25
+      minLength: 10
+      type: string
+      description: "Date, time, and time zone of the transaction (e.g., 2020-06-18T17:11:05-05:00),\
+        \ OR<br>Date and time of the transaction in Coordinated Universal Time\
+        \ (UTC) (e.g., 2020-06-18T17:11:05+00:00), OR<br>If time or time zone\
+        \ is unknown, then the date of the transaction (e.g., 2020-06-18). ISO 8601\
+        \ format"
+      example: 2021-06-18T22:11:05+05:00
+
+    RefundStatus:
+      maxLength: 12
+      minLength: 8
+      type: string
+      description: |-
+        Whether the transaction was REFUNDED, NOT_REFUNDED, or NOT_SETTLED.
+        Using NOT_SETTLED as a refund flag means that the transaction did not go to settlement. The allowed values for refund are:
+        - REFUNDED
+        - NOT_REFUNDED
+        - NOT_SETTLED
+      example: REFUNDED
+    Refund:
+      type: object
+      required:
+        - amount
+        - timestamp
+      properties:
+        amount:
+          description: |-
+            The refund amount explains the amount that has been refunded by the merchant for
+            the particular alert.
+          required:
+            - currencyCode
+            - value
+          type: object
+          properties:
+            value:
+              maximum: 999999
+              minimum: 1
+              type: number
+              format: double
+              description: "Total amount value associated with the transaction.<br>Decimal\
+                \ point period expected to denote the separation of the fractional suffix\
+                \ from the rest of the  amount, if applicable for the currency. Decimal\
+                \ point period must not be the first character. Examples:<br>- USD exponent\
+                \ is 2, so the $250 USD value should be represented as 250.00, 34&cent; USD\
+                \ value should be represented as 0.34<br>- JPY exponent is 0, so &yen;250\
+                \ JPY value should be represented as 250"
+              example: 361.56
+            currencyCode:
+              maxLength: 3
+              minLength: 3
+              type: string
+              description: Alphabetic currency code associated with the value in ISO 4217
+                format
+              example: USD
+        type:
+          type: string
+          maxLength: 9
+          minLength: 6
+          description: |-
+            It shows how the refund has been completed. The values can be either refund or
+            voucher. Allowed values for refund type
+            - REFUND
+            - VOUCHER
+            - POINTS
+            - GIFT_CARD
+          example: REFUND
+        timestamp:
+          maxLength: 25
+          minLength: 10
+          type: string
+          description: "Date, time, and time zone of the transaction (e.g., 2020-06-18T17:11:05-05:00),\
+              \ OR<br>Date and time of the transaction in Coordinated Universal Time\
+              \ (UTC) (e.g., 2020-06-18T17:11:05+00:00), OR<br>If time or time zone\
+              \ is unknown, then the date of the transaction (e.g., 2020-06-18). ISO 8601\
+              \ format"
+          example: 2021-06-18T22:11:05+05:00
+        transactionId:
+          type: string
+          maxLength: 64
+          minLength: 1
+          description: |-
+            The id will represent the transaction for the amount refunded.
+              This will be an alphanumeric value.
+          example: 23aer543245678984ew39awse0
+        acquirerReferenceNumber:
+          type: string
+          maxLength: 24
+          minLength: 1
+          description: |-
+            The acquirer's reference number is related to the refund. It is a unique 23/24 digit number that tags a card transaction when it goes from the merchant's bank (the acquiring bank) through the card scheme to the cardholder's bank (the issuer). This is represented by Mastercard DE 31 (clearing.)
+          example: 98765432456789876345213
+    AmountStopped:
+      description: Total amount value and currency of fraud stopped
+      required:
+        - currencyCode
+        - value
+      type: object
+      properties:
+        value:
+          maximum: 999999
+          minimum: 1
+          type: number
+          format: double
+          description: "Total amount value associated with the transaction.<br>Decimal\
+            \ point period expected to denote the separation of the fractional suffix\
+            \ from the rest of the  amount, if applicable for the currency. Decimal\
+            \ point period must not be the first character. Examples:<br>- USD exponent\
+            \ is 2, so the $250 USD value should be represented as 250.00, 34&cent; USD\
+            \ value should be represented as 0.34<br>- JPY exponent is 0, so &yen;250\
+            \ JPY value should be represented as 250"
+          example: 361.56
+        currencyCode:
+          maxLength: 3
+          minLength: 3
+          type: string
+          description: Alphabetic currency code associated with the value in ISO 4217
+            format
+          example: USD
+
+    OutcomeAcknowledgement:
+      type: object
+      properties:
+        outcomeResponses:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatusUpdate'
+          description: "Array indicating the alerts that were successfully updated with outcomes"
+    StatusUpdate:
+      type: object
+      required:
+        - alertId
+        - status
+      properties:
+        alertId:
+          $ref: '#/components/schemas/AlertId'
+        status:
+          $ref: '#/components/schemas/Status'
+        errors:
+          $ref: '#/components/schemas/Errors'
+      example:
+        alertId: "A4IM9K2MIYL9F2BPF9TWUIXTU"
+        status: "SUCCESS"
+
+  requestBodies:
+    'Outcomes':
+      description: Success
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Outcomes'
+  responses:
+    'OutcomeAcknowledgement':
+      description: Success
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/OutcomeAcknowledgement'
+    'Forbidden':
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    'Unauthorized':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    'BadRequest':
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

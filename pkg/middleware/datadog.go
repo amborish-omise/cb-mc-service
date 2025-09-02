@@ -10,6 +10,13 @@ import (
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
+// contextKey is a custom type for context keys to avoid collisions
+type contextKey string
+
+const (
+	ddSpanKey contextKey = "dd_span"
+)
+
 // DatadogMiddleware adds Datadog tracing to HTTP requests
 func DatadogMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -25,7 +32,7 @@ func DatadogMiddleware() gin.HandlerFunc {
 		defer span.Finish()
 
 		// Add span to context
-		ctx := context.WithValue(c.Request.Context(), "dd_span", span)
+		ctx := context.WithValue(c.Request.Context(), ddSpanKey, span)
 		c.Request = c.Request.WithContext(ctx)
 
 		// Add trace headers to response
@@ -52,7 +59,7 @@ func DatadogMiddleware() gin.HandlerFunc {
 
 // GetSpanFromContext retrieves the Datadog span from context
 func GetSpanFromContext(ctx context.Context) tracer.Span {
-	if span, ok := ctx.Value("dd_span").(tracer.Span); ok {
+	if span, ok := ctx.Value(ddSpanKey).(tracer.Span); ok {
 		return span
 	}
 	return nil

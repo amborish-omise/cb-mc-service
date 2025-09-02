@@ -133,12 +133,39 @@ The service uses Viper for configuration management. Configuration can be set vi
 4. **Building**: Use `make build-*` for Docker builds
 5. **Deployment**: Use `make release-*` for production builds
 
+## Webhook Development
+
+### Testing Webhooks
+
+Use the provided sample payload for testing:
+
+```bash
+# Test the webhook endpoint
+curl -X POST http://localhost:8080/api/v6/webhooks/ethoca \
+  -H "Content-Type: application/json" \
+  -d @docs/sample-webhook-payload.json
+
+# Check webhook health
+curl http://localhost:8080/api/v6/webhooks/ethoca/health
+
+# Get webhook statistics
+curl http://localhost:8080/api/v6/webhooks/ethoca/stats
+```
+
+### Webhook Documentation
+
+For detailed webhook integration information, see:
+- [Ethoca Webhook Documentation](docs/ETHOCA_WEBHOOK.md)
+- [Sample Webhook Payload](docs/sample-webhook-payload.json)
+- [System Diagrams](docs/system-diagrams/) - Comprehensive visual documentation of architecture and workflows
+
 ## Contributing
 
 1. Follow the existing code structure
 2. Add tests for new functionality
 3. Run `make check` before committing
 4. Follow the Go template patterns established
+5. Include webhook tests when adding new webhook functionality
 
 ## License
 
