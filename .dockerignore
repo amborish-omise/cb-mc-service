@@ -1,0 +1,14 @@
+.DS_Store
+.env.development*
+.env.test*
+.dockerignore
+.gitignore
+.git
+.gitattributes
+.github
+.gitignore
+.vscode
+Dockerfile
+OWNERS.md
+README.md
+docker-compose.yml

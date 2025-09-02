@@ -1,0 +1,30 @@
+version: "3"
+services:
+  app-http:
+    build:
+      context: ./..
+      target: release
+      args:
+        APP_TYPE: http
+
+  app-grpc:
+    build:
+      context: ./..
+      target: release
+      args:
+        APP_TYPE: grpc
+
+  app-http-grpc:
+    build:
+      context: ./..
+      target: release
+      args:
+        APP_TYPE: http-grpc
+
+  # Testing
+  app-test:
+    build:
+      context: ./..
+      target: test
+    volumes:
+      - ..:/app:cached

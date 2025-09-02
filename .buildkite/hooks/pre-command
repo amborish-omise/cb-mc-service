@@ -1,0 +1,7 @@
+set -euo pipefail
+
+echo "# Prepare .env"
+make env
+
+echo "# Enable buildkit on buildkite"
+export DOCKER_BUILDKIT=1

@@ -1,0 +1,104 @@
+env:
+  APP_NAME: ${BUILDKITE_PIPELINE_NAME}
+
+  # By default, the plugin will build every apps inside `cmd/*/main.go`.
+  # If we want to limit it to certian app. We can uncomment the following line.
+  # BUILDKITE_PLUGIN_GO_TEMPLATE_APP_APPS: http grpc
+
+  # For reports
+  ARTIFACT_DIR: artifacts/*
+
+  # Plugins
+  PLUGIN_DOCKER_COMPOSE: "docker-compose#v3.7.0"
+  PLUGIN_DOCKER_COMPOSE_FILE: .buildkite/docker-compose.yml
+  PLUGIN_GO_TEMPLATE_APP: 'ssh://git@github.com/OmisePayments/go-template-app-buildkite-plugin.git#v0.1.1'
+  PLUGIN_SONAR_SCAN: 'ssh://git@github.com/OmisePayments/omise-sonarscan-buildkite-plugin.git#2.1'
+
+agents:
+  - "queue=omise"
+  - "docker-builder=true"
+
+steps:
+  - label: ":docker: Trigger build (test)"
+    branches: "!staging"
+    plugins:
+      - ${PLUGIN_GO_TEMPLATE_APP}:
+          name: ${APP_NAME}
+          build: test
+
+  - wait:
+
+  #
+  # Run test
+  #
+  - label: ":mag: Check %n"
+    branches: "!staging"
+    artifact_paths:
+      - ${ARTIFACT_DIR}
+    plugins:
+      - ${PLUGIN_DOCKER_COMPOSE}:
+          config: ${PLUGIN_DOCKER_COMPOSE_FILE}
+          run: app-test
+          env:
+            - BUILDKITE
+          entrypoint: ".buildkite/scripts/check.sh"
+
+  - label: ":fire: Test %n"
+    branches: "!staging"
+    artifact_paths:
+      - ${ARTIFACT_DIR}
+    plugins:
+      - ${PLUGIN_DOCKER_COMPOSE}:
+          config: ${PLUGIN_DOCKER_COMPOSE_FILE}
+          run: app-test
+          env:
+            - BUILDKITE
+          entrypoint: ".buildkite/scripts/test.sh"
+
+  - wait:
+    continue_on_failure: true
+
+  #
+  # Build reports
+  #
+  - label: ":chart_with_upwards_trend: Reports"
+    branches: "!staging"
+    plugins:
+      - junit-annotate#v1.7.0:
+          failure-format: file
+          artifacts: ${ARTIFACT_DIR}.xml
+
+  - label : ":one-does-not-simply: Security Checkpoint"
+    branches: "!staging"
+    key: use-sonarqube
+    plugins:
+      - ${PLUGIN_SONAR_SCAN}:
+          project_key: "${BUILDKITE_PIPELINE_NAME}"
+
+  - wait:
+
+  #
+  # Build images for release
+  #
+  - label: ":docker: Check if a release build is required"
+    plugins:
+      - ${PLUGIN_GO_TEMPLATE_APP}:
+          name: ${APP_NAME}
+          build: release
+
+  - wait:
+
+  #
+  # Push images to corresponding environment
+  #
+  - label: ":docker: Check if the image requires staging release"
+    plugins:
+      - ${PLUGIN_GO_TEMPLATE_APP}:
+          name: ${APP_NAME}
+          push: staging
+
+  - label: ":docker: Check if the image requires production release"
+    plugins:
+      - ${PLUGIN_GO_TEMPLATE_APP}:
+          name: ${APP_NAME}
+          push: production

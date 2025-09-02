@@ -1,278 +1,145 @@
-# MasterCom Service with Datadog Integration
+# MasterCom Service
 
-A Go-based REST API service for MasterCom case management and document handling with comprehensive Datadog logging and tracing.
-
-## Features
-
-- Case filing and management
-- Document upload and management
-- RESTful API endpoints
-- JSON logging with Datadog integration
-- Distributed tracing with Datadog APM
-- CORS support
-- Health check endpoint
-- Performance profiling
+A Go service following the OmisePayments Go template structure for handling MasterCom case filing and document management.
 
 ## Project Structure
 
+This project follows the OmisePayments Go template structure:
+
 ```
-CB-mc-backend/
 ├── cmd/
-│   └── server/
-│       └── main.go          # Application entry point with Datadog setup
-├── internal/
-│   ├── config/
-│   │   ├── config.go        # Configuration management
-│   │   └── datadog.go       # Datadog configuration
-│   ├── handlers/
-│   │   ├── case_handlers.go     # Case-related HTTP handlers with tracing
-│   │   └── document_handlers.go # Document-related HTTP handlers with tracing
-│   ├── models/
-│   │   ├── case.go          # Case data models
-│   │   └── document.go      # Document data models
-│   └── services/
-│       ├── case_service.go      # Case business logic
-│       └── document_service.go  # Document business logic
-├── pkg/
-│   ├── logger/
-│   │   └── datadog.go       # Datadog-integrated logger
-│   └── middleware/
-│       ├── cors.go          # CORS middleware
-│       ├── datadog.go       # Datadog tracing middleware
-│       └── logger.go        # Logging middleware
-├── tests/                   # Integration tests
-├── mastercom-swagger.yaml   # OpenAPI specification
-├── docker-compose.yml       # Docker Compose with Datadog agent
-├── .env.example            # Environment variables template
-├── README.md               # This file
-├── Makefile                # Build and run commands
-├── Dockerfile              # Container configuration
-├── .gitignore              # Git ignore rules
-├── go.mod                  # Go module file
-└── go.sum                  # Dependencies checksum
+│   ├── http/           # HTTP-only server
+│   ├── grpc/           # gRPC-only server  
+│   └── http-grpc/      # Combined HTTP + gRPC server
+├── internal/            # Internal application code
+├── pkg/                 # Public packages
+├── specs/               # API specifications (gRPC, OpenAPI)
+├── .buildkite/          # CI/CD configuration
+├── Dockerfile           # Multi-stage Docker build
+├── docker-compose.yml   # Local development setup
+└── Makefile            # Build and development commands
 ```
 
-## Datadog Integration
-
-This service includes comprehensive Datadog integration for:
-
-### Tracing
-- Automatic HTTP request tracing
-- Custom spans for business operations
-- Trace correlation with logs
-- Performance monitoring
-
-### Logging
-- Structured JSON logging
-- Trace ID and Span ID correlation
-- Error tracking and monitoring
-- Custom log fields for business metrics
-
-### Profiling
-- CPU profiling
-- Memory profiling
-- Block and mutex profiling
-- Performance optimization insights
-
-## API Endpoints
-
-### Health Check
-- `GET /health` - Service health status with trace information
-
-### Cases
-- `POST /api/v6/cases` - Create a new case
-- `GET /api/v6/cases` - List all cases (with pagination)
-- `GET /api/v6/cases/:id` - Get a specific case
-- `PUT /api/v6/cases/:id` - Update a case
-- `DELETE /api/v6/cases/:id` - Delete a case
-
-### Documents
-- `POST /api/v6/documents` - Upload a document
-- `GET /api/v6/documents/:id` - Get a specific document
-- `DELETE /api/v6/documents/:id` - Delete a document
-
-## Getting Started
+## Quick Start
 
 ### Prerequisites
 
-- Go 1.21 or higher
+- Go 1.25+
 - Docker and Docker Compose
-- Datadog account and API key
+- Make
 
-### Local Development
+### Environment Setup
 
-1. Clone the repository
-2. Copy environment variables:
+1. Copy the environment template:
    ```bash
    cp .env.example .env
    ```
 
-3. Update `.env` with your Datadog API key:
+2. Update the `.env` file with your configuration:
    ```bash
-   DD_API_KEY=your-actual-datadog-api-key
+   APP_NAME=mastercom-service
+   DEBUGGER_PORT=2345
+   APP_GRPC_SERVER_PORT=50000
+   APP_HTTP_SERVER_PORT=8080
    ```
 
-4. Install dependencies:
-   ```bash
-   go mod tidy
-   ```
+### Running the Service
 
-5. Run with Docker Compose (includes Datadog agent):
-   ```bash
-   docker-compose up --build
-   ```
+#### HTTP Server Only
+```bash
+make run-http
+```
 
-6. Or run locally (requires Datadog agent):
-   ```bash
-   make run
-   ```
+#### gRPC Server Only
+```bash
+make run-grpc
+```
 
-### Environment Variables
-
-#### Application
-- `ENVIRONMENT` - Set to "production" for production mode (default: "development")
-- `PORT` - Server port (default: "8080")
-- `LOG_LEVEL` - Logging level (default: "info")
-
-#### Datadog
-- `DD_ENABLED` - Enable Datadog integration (default: "true")
-- `DD_SERVICE` - Service name (default: "mastercom-service")
-- `DD_ENV` - Environment (default: "development")
-- `DD_VERSION` - Service version (default: "1.0.0")
-- `DD_AGENT_HOST` - Datadog agent host (default: "localhost")
-- `DD_AGENT_PORT` - Datadog agent port (default: "8126")
-- `DD_TRACE_SAMPLE_RATE` - Trace sampling rate (default: "1.0")
-- `DD_API_KEY` - Your Datadog API key
+#### Combined HTTP + gRPC Server
+```bash
+make run-http-grpc
+```
 
 ### Development
 
-#### Running tests
+#### Debug Mode
 ```bash
-make test
+make debug-http      # Debug HTTP server
+make debug-grpc      # Debug gRPC server
+make debug-http-grpc # Debug combined server
 ```
 
-#### Building for production
+#### Testing
 ```bash
-make build
+make test            # Run tests
+make check           # Run linting and checks
 ```
 
-#### Cleaning build artifacts
+#### Code Generation
 ```bash
-make clean
+make gen-proto      # Generate gRPC code from protobuf
+make gen-openapi    # Generate OpenAPI specs from protobuf
 ```
 
-## Datadog Dashboard
+### Docker Commands
 
-Once the service is running, you can view:
-
-1. **APM Traces** - Distributed tracing for all API requests
-2. **Logs** - Structured logs with trace correlation
-3. **Profiles** - Performance profiling data
-4. **Metrics** - Custom business metrics
-
-### Key Metrics to Monitor
-
-- Request latency and throughput
-- Error rates by endpoint
-- Case creation and processing times
-- Document upload success rates
-- Database operation performance
-
-## API Examples
-
-### Create a Case with Tracing
 ```bash
-curl -X POST http://localhost:8080/api/v6/cases \
-  -H "Content-Type: application/json" \
-  -H "X-Request-ID: $(uuidgen)" \
-  -d '{
-    "caseType": "PRE_ARBITRATION",
-    "primaryAccountNumber": "4111111111111111",
-    "transactionAmount": 100.00,
-    "transactionCurrency": "USD",
-    "transactionDate": "2024-01-01T00:00:00Z",
-    "transactionId": "123456789",
-    "reasonCode": "10.1",
-    "filingAs": "ISSUER",
-    "filingIca": "123456",
-    "filedAgainstIca": "654321"
-  }'
+make build-dev       # Build development image
+make build-test      # Build testing image
+make build           # Build production image
+make release-http    # Build release image for HTTP
+make release-grpc    # Build release image for gRPC
+make release-http-grpc # Build release image for combined
 ```
 
-### Upload a Document with Tracing
-```bash
-curl -X POST http://localhost:8080/api/v6/documents \
-  -F "file=@document.pdf" \
-  -F "caseId=case-id-here" \
-  -F "description=Supporting documentation" \
-  -F "uploadedBy=test-user" \
-  -H "X-Request-ID: $(uuidgen)"
-```
+## API Endpoints
 
-### Health Check with Trace Info
-```bash
-curl http://localhost:8080/health
-```
+### Health Checks
+- `GET /__ops/ping` - Template-style health check (returns "pong")
+- `GET /health` - Detailed health check with Datadog tracing
 
-Response includes trace information:
-```json
-{
-  "status": "ok",
-  "service": "mastercom-service",
-  "version": "v1.0.0",
-  "dd_trace_id": "1234567890",
-  "dd_span_id": "0987654321"
-}
-```
+### Case Management
+- `POST /api/v6/cases` - Create a new case
+- `GET /api/v6/cases` - List all cases
+- `GET /api/v6/cases/:id` - Get a specific case
+- `PUT /api/v6/cases/:id` - Update a case
+- `DELETE /api/v6/cases/:id` - Delete a case
 
-## Monitoring and Alerting
+### Document Management
+- `POST /api/v6/documents` - Upload a document
+- `GET /api/v6/documents/:id` - Get a specific document
+- `DELETE /api/v6/documents/:id` - Delete a document
 
-### Recommended Alerts
+## Configuration
 
-1. **High Error Rate** - Alert when error rate > 5%
-2. **High Latency** - Alert when p95 latency > 2s
-3. **Service Down** - Alert when health check fails
-4. **Document Upload Failures** - Alert when upload success rate < 95%
+The service uses Viper for configuration management. Configuration can be set via:
 
-### Custom Metrics
+- Environment variables
+- Configuration files
+- Command line flags
 
-The service automatically tracks:
-- Case creation/update/deletion rates
-- Document upload/download rates
-- API endpoint usage
-- Business transaction volumes
+## Observability
 
-## Troubleshooting
+- **Logging**: Structured logging with Datadog integration
+- **Tracing**: Distributed tracing with Datadog APM
+- **Metrics**: Prometheus metrics (planned)
+- **Health Checks**: Built-in health check endpoints
 
-### Datadog Agent Issues
+## Development Workflow
 
-1. Check agent status:
-   ```bash
-   docker-compose logs datadog-agent
-   ```
+1. **Local Development**: Use `make run-*` for local development
+2. **Testing**: Use `make test` for running tests
+3. **Linting**: Use `make check` for code quality checks
+4. **Building**: Use `make build-*` for Docker builds
+5. **Deployment**: Use `make release-*` for production builds
 
-2. Verify agent connectivity:
-   ```bash
-   curl http://localhost:8126/info
-   ```
+## Contributing
 
-3. Check trace ingestion:
-   ```bash
-   curl http://localhost:8126/health
-   ```
-
-### Service Issues
-
-1. Check service logs:
-   ```bash
-   docker-compose logs mastercom-service
-   ```
-
-2. Verify environment variables:
-   ```bash
-   docker-compose exec mastercom-service env | grep DD_
-   ```
+1. Follow the existing code structure
+2. Add tests for new functionality
+3. Run `make check` before committing
+4. Follow the Go template patterns established
 
 ## License
 
-This project is licensed under the MIT License.
+[Add your license information here]

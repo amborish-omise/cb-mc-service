@@ -1,0 +1,9 @@
+version: "3"
+services:
+  # Tools (e.g. gRPC)
+  tools:
+    build:
+      context: ./..
+      target: tools
+    volumes:
+      - ..:/app:cached

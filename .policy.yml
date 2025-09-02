@@ -1,0 +1,3 @@
+# The remote repository to read the policy file from. This is required, and must
+# be in the form of "org/repo-name". Must be a public repository.
+remote: OmisePayments/change-policy

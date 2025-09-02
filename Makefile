@@ -1,112 +1,60 @@
-.PHONY: build run test clean
+# Application settings
+APP_NAME := mastercom-service
+APP_FILE := cmd/%/main.go
+ENV_FILE := .env
 
-# Binary name
-BINARY_NAME=mastercom-service
+# Docker related settings
+BUILDKITE_DIR  := .buildkite
+SCRIPT_DIR     := $(BUILDKITE_DIR)/scripts
+DOCKER_COMPOSE := docker compose
+DOCKER_BUILD   := docker build
+DOCKER_TOOLS   := $(DOCKER_COMPOSE) -f $(BUILDKITE_DIR)/docker-compose.tools.yml
+DOCKER_TEST    := $(DOCKER_COMPOSE) -f $(BUILDKITE_DIR)/docker-compose.yml
+DOCKER_ORPHANS := --remove-orphans
 
-# Build directory
-BUILD_DIR=bin
+.PHONY: env test
 
-# Build the application
-build:
-	@echo "Building $(BINARY_NAME)..."
-	@mkdir -p $(BUILD_DIR)
-	@go build -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/server
+run-%: verify-% build-dev
+	$(DOCKER_COMPOSE) up $(DOCKER_ORPHANS) app-$*
 
-# Run the application
-run:
-	@echo "Running $(BINARY_NAME)..."
-	@go run ./cmd/server
+debug-%: build-debug env
+	$(DOCKER_COMPOSE) run --rm --service-ports -v  ${SCRIPT_DIR}:/app/${SCRIPT_DIR} --entrypoint="${SCRIPT_DIR}/debug.sh cmd/$*/main.go" app-$*
 
-# Run tests
-test:
-	@echo "Running tests..."
-	@go test ./...
+check: build-test
+	$(DOCKER_TEST) run --rm --entrypoint $(SCRIPT_DIR)/check.sh app-test
 
-# Run tests with coverage
-test-coverage:
-	@echo "Running tests with coverage..."
-	@go test -coverprofile=coverage.out ./...
-	@go tool cover -html=coverage.out
+test: build-test
+	$(DOCKER_TEST) run --rm --entrypoint $(SCRIPT_DIR)/test.sh app-test
 
-# Clean build artifacts
+# This is for internal use. Please use `run-*` target instead.
+build-%: Dockerfile env
+	$(DOCKER_BUILD) -t $(APP_NAME) --target $* .
+
+release-%: verify-%
+	$(DOCKER_BUILD) -t $(APP_NAME)-$* --build-arg $* --target release .
+
+verify-%:
+	[ ! -f $(subst %,$*,$(APP_FILE)) ] && echo "error: $(subst %,$*,$(APP_FILE)) not exists" && exit 1 || true
+
+env:
+	[ ! -f $(ENV_FILE) ] && cat .env.example | sed 's/APP_NAME=.*/APP_NAME=$(APP_NAME)/g' > .env || true
+
 clean:
-	@echo "Cleaning build artifacts..."
-	@rm -rf $(BUILD_DIR)
-	@rm -f coverage.out
+	$(DOCKER_COMPOSE) down $(DOCKER_ORPHANS)
 
-# Install dependencies
-deps:
-	@echo "Installing dependencies..."
-	@go mod tidy
-	@go mod download
+gen-proto: build-tools
+	$(DOCKER_TOOLS) run --rm tools \
+	-I ./specs/grpc \
+	-I /usr/local/include \
+	--go_out ./specs/grpc --go_opt paths=source_relative \
+	--go-grpc_out ./specs/grpc --go-grpc_opt paths=source_relative \
+	--grpc-gateway_out ./specs/grpc --grpc-gateway_opt paths=source_relative \
+	./specs/grpc/**/*.proto
 
-# Format code
-fmt:
-	@echo "Formatting code..."
-	@go fmt ./...
-
-# Lint code
-lint:
-	@echo "Linting code..."
-	@golangci-lint run
-
-# Generate API documentation
-docs:
-	@echo "Generating API documentation..."
-	@swag init -g cmd/server/main.go
-
-# Docker build
-docker-build:
-	@echo "Building Docker image..."
-	@docker build -t $(BINARY_NAME) .
-
-# Docker run
-docker-run:
-	@echo "Running Docker container..."
-	@docker run -p 8080:8080 $(BINARY_NAME)
-
-# Help
-help:
-	@echo "Available commands:"
-	@echo "  build        - Build the application"
-	@echo "  run          - Run the application"
-	@echo "  test         - Run tests"
-	@echo "  test-coverage- Run tests with coverage"
-	@echo "  clean        - Clean build artifacts"
-	@echo "  deps         - Install dependencies"
-	@echo "  fmt          - Format code"
-	@echo "  lint         - Lint code"
-	@echo "  docs         - Generate API documentation"
-	@echo "  docker-build - Build Docker image"
-	@echo "  docker-run   - Run Docker container"
-	@echo "  help         - Show this help"
-
-# Start services with Docker Compose (includes Datadog agent)
-docker-up:
-	@echo "Starting services with Docker Compose..."
-	@docker-compose up --build
-
-# Stop services
-docker-down:
-	@echo "Stopping services..."
-	@docker-compose down
-
-# Start services in background
-docker-up-d:
-	@echo "Starting services in background..."
-	@docker-compose up -d --build
-
-# View logs
-docker-logs:
-	@echo "Viewing service logs..."
-	@docker-compose logs -f
-
-# View Datadog agent logs
-datadog-logs:
-	@echo "Viewing Datadog agent logs..."
-	@docker-compose logs -f datadog-agent
-
-# Test Datadog agent connectivity
-datadog-test:
-	@echo "Testing Datadog agent connectivity..."
-	@curl -s http://localhost:8126/info || echo "Datadog agent not accessible"
+gen-openapi: build-tools
+	$(DOCKER_TOOLS) run --rm tools \
+	-I ./specs/grpc \
+	-I /usr/local/include \
+	--openapiv2_out ./specs/grpc \
+	--openapiv2_opt logtostderr=true \
+	./specs/grpc/**/*.proto

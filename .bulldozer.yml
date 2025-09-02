@@ -1,0 +1,9 @@
+version: 1
+# "merge" defines how and when pull requests are merged. If the section is
+# missing, bulldozer will consider all pull requests and use default settings.
+merge:
+  whitelist:
+    labels: ["category:*"]
+  required_statuses:
+    - "policy-bot: master"
+  delete_after_merge: true
